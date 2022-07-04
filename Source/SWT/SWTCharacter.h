@@ -17,18 +17,18 @@ class USoundBase;
 // It is declared as dynamic so it can be accessed also in Blueprints
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnUseItem);
 
-UCLASS(config=Game)
+UCLASS(config = Game)
 class ASWTCharacter : public ACharacter
 {
 	GENERATED_BODY()
 
-	/** Pawn mesh: 1st person view (arms; seen only by self) */
-	UPROPERTY(VisibleDefaultsOnly, Category=Mesh)
-	USkeletalMeshComponent* Mesh1P;
+		/** Pawn mesh: 1st person view (arms; seen only by self) */
+		UPROPERTY(VisibleDefaultsOnly, Category = Mesh)
+		USkeletalMeshComponent* Mesh1P;
 
 	/** First person camera */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
-	UCameraComponent* FirstPersonCameraComponent;
+		UCameraComponent* FirstPersonCameraComponent;
 
 public:
 	ASWTCharacter();
@@ -38,14 +38,14 @@ protected:
 
 public:
 	/** Base turn rate, in deg/sec. Other scaling may affect final turn rate. */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Camera)
-	float TurnRateGamepad;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera)
+		float TurnRateGamepad;
 
 	/** Delegate to whom anyone can subscribe to receive this event */
 	UPROPERTY(BlueprintAssignable, Category = "Interaction")
-	FOnUseItem OnUseItem;
+		FOnUseItem OnUseItem;
 protected:
-	
+
 	/** Fires a projectile. */
 	void OnPrimaryAction();
 
@@ -69,7 +69,7 @@ protected:
 
 	struct TouchData
 	{
-		TouchData() { bIsPressed = false;Location=FVector::ZeroVector;}
+		TouchData() { bIsPressed = false; Location = FVector::ZeroVector; }
 		bool bIsPressed;
 		ETouchIndex::Type FingerIndex;
 		FVector Location;
@@ -79,19 +79,42 @@ protected:
 	void EndTouch(const ETouchIndex::Type FingerIndex, const FVector Location);
 	void TouchUpdate(const ETouchIndex::Type FingerIndex, const FVector Location);
 	TouchData	TouchItem;
-	
+
 protected:
 	// APawn interface
 	virtual void SetupPlayerInputComponent(UInputComponent* InputComponent) override;
 	// End of APawn interface
 
-	/* 
-	 * Configures input for touchscreen devices if there is a valid touch interface for doing so 
+	/*
+	 * Configures input for touchscreen devices if there is a valid touch interface for doing so
 	 *
 	 * @param	InputComponent	The input component pointer to bind controls to
 	 * @returns true if touch controls were enabled.
 	 */
 	bool EnableTouchscreenMovement(UInputComponent* InputComponent);
+
+	#pragma region LedgeClimb
+private:
+	int ledgeCheckCount = 0;
+	TArray<FTransform> SplinePositions;
+
+public:
+	UFUNCTION(BlueprintCallable)
+	void LedgeCheck(FVector StartPosition, FRotator StartRotation, float Height, bool bFirstTime);
+
+	static float RoundToNearest90(float Angle)
+	{
+		// Divide by 90 to get 0 - 4 then round up and multiply by 90.
+		// Eg: 87 / 90 = 0.966, Round = 1 * 90 = 90
+		// 241.87/90 = 2.687, Round = 3, * 90 = 270 etc...
+		return (FMath::RoundToInt(Angle / 90) * 90);
+	}
+
+	FRotator GetRollYawNearNinety(FRotator Rotation)
+	{
+	}
+
+#pragma endregion
 
 public:
 	/** Returns Mesh1P subobject **/

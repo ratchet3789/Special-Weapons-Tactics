@@ -7,6 +7,8 @@
 #include "Components/CapsuleComponent.h"
 #include "Components/InputComponent.h"
 #include "GameFramework/InputSettings.h"
+#include <Kismet/KismetMathLibrary.h>
+#include "DynamicClimbActor.h"
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -144,6 +146,57 @@ bool ASWTCharacter::EnableTouchscreenMovement(class UInputComponent* PlayerInput
 
 		return true;
 	}
-	
+
 	return false;
+}
+
+void ASWTCharacter::LedgeCheck(FVector StartPosition, FRotator StartRotation, float Height, bool bFirstTime)
+{
+	if(bFirstTime)
+	{
+		ledgeCheckCount=0;
+		SplinePositions.Empty();
+	}
+	
+	FVector FwdVec = UKismetMathLibrary::GetForwardVector(StartRotation);
+	FVector StartVec = StartPosition;
+	FVector EndVec = FwdVec * 100.0f + StartPosition;
+
+	FHitResult HitResult;
+	// Cast Forward
+	GetWorld()->LineTraceSingleByChannel(HitResult, StartVec, EndVec, ECC_Visibility);
+	DrawDebugLine(GetWorld(), StartVec, EndVec, FColor::Red, false, 10.0f, 0, 0.5f);
+	// If we've hit something then we re-run this script
+	if (HitResult.GetActor() != nullptr)
+	{
+		ledgeCheckCount++;
+		LedgeCheck(StartPosition + FVector::UpVector * Height, StartRotation, Height, false);
+		return;
+	}
+
+	// If we've checked more than once and we've hit walls constantly
+	// We now use the length of the cast + 50uu to cast downwards 100 units
+	// to see if we've hit a solid surface with the tag of Climbable
+	if (ledgeCheckCount > 0)
+	{
+		// As were at the end we can set our start and end hit points
+		SplinePositions.Add(UKismetMathLibrary::MakeTransform(GetActorLocation(), FRotator(0.0f, RoundToNearest90(StartRotation.Yaw), RoundToNearest90(StartRotation.Roll)))
+
+		StartVec = FwdVec * 100.0f + StartPosition;
+		EndVec = (StartVec + (FwdVec * 50.0f)) - FVector::UpVector * 100.0f;
+		GetWorld()->LineTraceSingleByChannel(HitResult, StartVec, EndVec, ECC_Visibility);
+
+		DrawDebugLine(GetWorld(), StartVec, EndVec, FColor::Blue, false, 10.0f, 0, 0.5f);
+
+		if (HitResult.GetActor() != nullptr)
+		{
+			DrawDebugBox(GetWorld(), HitResult.ImpactPoint, FVector::OneVector * 100.0f, FQuat::Identity, FColor::Black, false, 10.0f, 0, 1.0f);
+			DrawDebugLine(GetWorld(), StartVec, EndVec, FColor::Blue, false, 10.0f, 1, 0.5f);
+			if(HitResult.GetActor()->ActorHasTag("Climbable"))
+			{
+				GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Black, TEXT("Hit Climbable, Draw Climb."));
+				GetWorld()->SpawnActor(ADynamicClimbActor::StaticClass(), new FTransform(UKismetMathLibrary::MakeTransform(GetActorLocation(), FRotator(0.0f, RoundToNearest90(StartRotation.Yaw), RoundToNearest90(StartRotation.Roll)), FVector::OneVector * 0.25f)));
+			}
+		}
+	}
 }
